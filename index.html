@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ventas Bicicletas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+/* Layout: cabecera con filtros, fila de KPIs, rejilla de gráficos de barras por dimensión del modelo en estrella */
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --fg:#1b2430; --muted:#5d6a7a; --line:#dde2e9;
+  --y23:#3b5b8c; --y25:#d98a1f; --y3:#2f8a7a; --good:#1f8a5b; --bad:#c2413b;
+  --font:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12171e; --panel:#1b222c; --fg:#e6ebf2; --muted:#93a0b2; --line:#2c3644;
+  --y23:#7da2d6; --y25:#f0a84a; --y3:#5cc4b0; --good:#43c28a; --bad:#ef7b74; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171e; --panel:#1b222c; --fg:#e6ebf2; --muted:#93a0b2; --line:#2c3644;
+  --y23:#7da2d6; --y25:#f0a84a; --y3:#5cc4b0; --good:#43c28a; --bad:#ef7b74; color-scheme:dark}
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+h1{font-size:22px;font-weight:600;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 0;max-width:62ch}
+.controls{display:flex;flex-wrap:wrap;gap:10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.seg button{font:inherit;color:var(--muted);background:none;border:0;padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.seg button:focus-visible{outline:2px solid var(--y23);outline-offset:-2px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.kpi .v{font-family:var(--mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;margin-top:4px}
+.kpi .d{font-family:var(--mono);font-size:12px;margin-top:2px;color:var(--muted)}
+.d.up{color:var(--good)} .d.down{color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.card h2{font-size:14px;font-weight:600;margin:0 0 2px}
+.card p{margin:0 0 8px;color:var(--muted);font-size:12px}
+.box{position:relative;height:300px}
+.btn{font:inherit;background:var(--fg);color:var(--bg);border:0;border-radius:6px;padding:7px 14px;cursor:pointer}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn:focus-visible{outline:2px solid var(--y23);outline-offset:2px}
+.status{color:var(--muted);font-size:12px;font-family:var(--mono)}
+.status.err{color:var(--bad)}
+.card{align-self:start}
+.legend{display:flex;gap:14px;color:var(--muted);font-size:12px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+footer{color:var(--muted);font-size:12px;max-width:90ch}
+footer code{font-family:var(--mono)}
+</style></head><body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Ventas de bicicletas</h1>
+      <p class="sub">Datos en vivo desde Supabase (vista <code>v_ventas_dashboard</code>). Se actualizan solo cuando pulsas el botón.</p>
+    </div>
+    <div class="controls">
+      <button class="btn" id="btnRef">Actualizar datos</button>
+      <div class="seg" id="segYear" role="group" aria-label="Año"></div>
+      <div class="seg" id="segMetric" role="group" aria-label="Medida">
+        <button data-v="v" aria-pressed="true">Venta neta</button>
+        <button data-v="m" aria-pressed="false">Margen</button>
+      </div>
+    </div>
+  </header>
+  <div class="status" id="status">Cargando…</div>
+  <div class="legend" id="legend"></div>
+  <section class="kpis" id="kpis"></section>
+  <section class="grid">
+    <div class="card"><h2>Por categoría</h2><p>dim_categorias</p><div class="box"><canvas id="c_categoria"></canvas></div></div>
+    <div class="card"><h2>Por subcategoría</h2><p>dim_subcategorias</p><div class="box"><canvas id="c_subcategoria"></canvas></div></div>
+    <div class="card"><h2>Por vendedor</h2><p>dim_ejecutivos_ventas</p><div class="box"><canvas id="c_vendedor"></canvas></div></div>
+    <div class="card"><h2>Por estado o provincia</h2><p>dim_geografia, 10 mayores</p><div class="box"><canvas id="c_estado"></canvas></div></div>
+    <div class="card"><h2>Por distribuidor</h2><p>dim_distribuidores, 12 mayores</p><div class="box"><canvas id="c_distribuidor"></canvas></div></div>
+    <div class="card"><h2>Por canal de captación</h2><p>medio_captacion, sin nombre en la base</p><div class="box"><canvas id="c_canal"></canvas></div></div>
+  </section>
+  <footer>Margen = venta neta menos costo total. La clave usada es la pública (anon) y solo puede leer esta vista, no las tablas de ventas.</footer>
+</div>
+<script>
+const SUPABASE_URL='https://dsxmgncvgukackttptgk.supabase.co';
+const ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzeG1nbmN2Z3VrYWNrdHRwdGdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NDczNjEsImV4cCI6MjEwMzUyMzM2MX0.XP8JyLDe8q7Isj8LftJNN2AQjpD4OPl8vewPjj6nR6A';
+const DIMS={categoria:{lim:0},subcategoria:{lim:0},vendedor:{lim:12},estado:{lim:10},distribuidor:{lim:12},canal:{lim:0}};
+let rows=[], years=[], year='all', metric='v';
+const charts={};
+try{Chart.register(ChartDataLabels)}catch(e){}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt=n=>Math.round(n).toLocaleString('es-BO');
+const colorOf=y=>[css('--y23'),css('--y25'),css('--y3')][years.indexOf(y)%3];
+const selYears=()=>year==='all'?years:[year];
+const meas=r=>metric==='v'?+r.venta_neta:+r.venta_neta-+r.costo_total;
+
+async function cargar(){
+  const b=document.getElementById('btnRef'),st=document.getElementById('status');
+  b.disabled=true;st.className='status';st.textContent='Consultando Supabase…';
+  try{
+    const r=await fetch(SUPABASE_URL+'/rest/v1/v_ventas_dashboard?select=*&limit=5000',{headers:{apikey:ANON_KEY,Authorization:'Bearer '+ANON_KEY}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    rows=(await r.json()).map(x=>({...x,y:String(x.fecha).slice(0,4)}));
+    years=[...new Set(rows.map(x=>x.y))].sort().slice(-3);
+    rows=rows.filter(x=>years.includes(x.y));
+    if(year!=='all'&&!years.includes(year))year='all';
+    buildYearSeg();render();
+    st.textContent='Actualizado '+new Date().toLocaleTimeString('es-BO')+' · '+fmt(rows.reduce((s,x)=>s+x.lineas,0))+' líneas de venta';
+  }catch(e){st.className='status err';st.textContent='No se pudo cargar: '+e.message+'. Revisa la conexión y pulsa Actualizar.'}
+  b.disabled=false;
+}
+function buildYearSeg(){
+  const seg=document.getElementById('segYear');
+  const opts=years.length>1?[['all','Todos los años'],...years.map(y=>[y,y])]:years.map(y=>[y,y]);
+  if(years.length<=1)year=years[0]||'all';
+  seg.innerHTML=opts.map(([v,l])=>`<button data-v="${v}" aria-pressed="${v===year}">${l}</button>`).join('');
+  seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{year=b.dataset.v;buildYearSeg();render()}));
+}
+function tot(y){const r=rows.filter(x=>x.y===y);const s=k=>r.reduce((a,x)=>a+ +x[k],0);const v=s('venta_neta'),c=s('costo_total');return{v,m:v-c,p:v?(v-c)/v*100:0,q:s('unidades'),l:s('lineas'),f:s('flete')}}
+function kpis(){
+  const ys=selYears(),el=document.getElementById('kpis');
+  const defs=[['Venta neta','v',n=>'$ '+fmt(n)],['Margen','m',n=>'$ '+fmt(n)],['Margen %','p',n=>n.toFixed(1)+' %'],['Unidades','q',fmt],['Líneas de venta','l',fmt],['Flete','f',n=>'$ '+fmt(n)]];
+  const sum=k=>ys.reduce((a,y)=>a+tot(y)[k],0);
+  el.innerHTML=defs.map(([lbl,k,f])=>{
+    let main,delta='';
+    if(year==='all'&&years.length>1){const last=years[years.length-1],prev=years[years.length-2];
+      const a=tot(prev)[k],b=tot(last)[k];main=f(b);lbl+=' · '+last;
+      const ch=k==='p'?b-a:(a?(b-a)/a*100:0);
+      delta=`<div class="d ${ch>=0?'up':'down'}">${ch>=0?'+':''}${ch.toFixed(1)}${k==='p'?' pp':' %'} vs ${prev} (${f(a)})</div>`;
+    }else main=f(k==='p'?tot(ys[0]||years[0]||'')[k]:sum(k));
+    return `<div class="kpi"><div class="l">${lbl}</div><div class="v">${main}</div>${delta}</div>`}).join('');
+}
+function legend(){document.getElementById('legend').innerHTML=selYears().map(y=>`<span><i style="background:${colorOf(y)}"></i>${y}</span>`).join('')}
+function draw(dim){
+  const ys=selYears(),map={};
+  rows.forEach(x=>{if(!ys.includes(x.y))return;(map[x[dim]]??={})[x.y]=(map[x[dim]][x.y]||0)+meas(x)});
+  let list=Object.entries(map).map(([n,o])=>({n,o,t:ys.reduce((s,y)=>s+(o[y]||0),0)})).filter(a=>a.t>0).sort((a,b)=>b.t-a.t);
+  if(DIMS[dim].lim)list=list.slice(0,DIMS[dim].lim);
+  const cv=document.getElementById('c_'+dim);
+  cv.parentElement.style.height=Math.max(180,list.length*(ys.length*17+10)+50)+'px';
+  if(charts[dim])charts[dim].destroy();
+  charts[dim]=new Chart(cv,{type:'bar',data:{labels:list.map(a=>a.n),datasets:ys.map(y=>({label:y,data:list.map(a=>Math.max(a.o[y]||0,0)),backgroundColor:colorOf(y),borderRadius:2,maxBarThickness:16}))},
+   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{right:64}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: $ ${fmt(c.parsed.x)}`}},
+      datalabels:{anchor:'end',align:'end',clamp:true,color:css('--fg'),font:{family:"'IBM Plex Mono',monospace",size:11},formatter:v=>v>0?'$ '+fmt(v):'',display:c=>c.dataset.data[c.dataIndex]>0}},
+    scales:{x:{grace:'8%',grid:{color:css('--line')},ticks:{color:css('--muted'),callback:v=>v>=1000?fmt(v/1000)+' k':v},border:{display:false}},
+            y:{grid:{display:false},ticks:{color:css('--fg'),font:{size:11}},border:{color:css('--line')}}}}});
+}
+function render(){if(!rows.length)return;kpis();legend();Object.keys(DIMS).forEach(draw)}
+document.querySelectorAll('#segMetric button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#segMetric button').forEach(x=>x.setAttribute('aria-pressed',x===b));metric=b.dataset.v;render()}));
+document.getElementById('btnRef').addEventListener('click',cargar);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+cargar();
+</script></body></html>
