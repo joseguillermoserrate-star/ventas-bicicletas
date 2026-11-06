@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard comercial · Ventas de bicicletas</title>
+<style>
+/* Paleta: azul = 2023, naranja = 2025 (el color sigue a la entidad, nunca al ranking). Aqua = margen. */
+:root{
+  color-scheme:light;
+  --bg:#f4f3f0; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#6b6a66; --line:#e2e1dc; --track:#efeee9;
+  --s1:#2a78d6; --s2:#eb6834; --margin:#1baf7a; --cost:#b9b8b0;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme:dark;
+    --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#9a998f; --line:#2f2e2b; --track:#242422;
+    --s1:#3987e5; --s2:#d95926; --margin:#199e70; --cost:#5c5b55;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#9a998f; --line:#2f2e2b; --track:#242422;
+  --s1:#3987e5; --s2:#d95926; --margin:#199e70; --cost:#5c5b55;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--font);
+  padding:20px max(16px,env(safe-area-inset-right,0px)) 32px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+h1{font-size:22px;font-weight:650;margin:0;text-wrap:balance}
+.sub{color:var(--ink2);margin:3px 0 0;max-width:68ch}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button,.ghost{font:inherit;color:var(--ink2);background:none;border:0;padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.seg button:not([aria-pressed="true"]):hover,.ghost:hover{background:var(--track)}
+.ghost{border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+button:focus-visible,.row:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
+.insight{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--ink2)}
+.insight b{color:var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.kpi .v{font:500 22px var(--mono);font-variant-numeric:tabular-nums;margin-top:4px;white-space:nowrap}
+.kpi .d{font:12px var(--mono);margin-top:3px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.legend{display:flex;flex-wrap:wrap;gap:14px;color:var(--ink2);font-size:12px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:12px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.card .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}
+.card h2{font-size:14px;font-weight:650;margin:0}
+.card p{margin:2px 0 0;color:var(--muted);font-size:12px}
+.tbtn{font:12px var(--font);color:var(--ink2);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 9px;cursor:pointer;white-space:nowrap}
+.tbtn[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.ghead{font-size:12px;font-weight:650;color:var(--ink2);margin:10px 0 4px;display:flex;align-items:center;gap:6px}
+.ghead:first-child{margin-top:0}
+.ghead i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.row{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:center;padding:4px 2px;border-radius:6px}
+.row:hover{background:var(--track)}
+.lab{font-size:12px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lines{display:flex;flex-direction:column;gap:2px;min-width:0}
+.line{display:grid;grid-template-columns:1fr 84px;gap:8px;align-items:center}
+.track{height:12px;min-width:0}
+.bar{height:100%;border-radius:0 4px 4px 0;min-width:2px}
+.val{font:12px var(--mono);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.val.none{color:var(--muted)}
+.mixrow{padding:6px 2px}
+.mixrow .yl{display:flex;align-items:center;gap:6px;font-weight:650;margin-bottom:4px}
+.mixrow .yl i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.mixbar{display:flex;height:22px}
+.seg-c,.seg-m{height:100%}
+.seg-c{background:var(--cost);border-radius:0}
+.seg-m{background:var(--margin);margin-left:2px;border-radius:0 4px 4px 0}
+.mixlab{display:flex;flex-wrap:wrap;gap:4px 16px;font:12px var(--mono);color:var(--ink);margin-top:5px}
+.mixlab span{color:var(--ink2)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:5px 6px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600}
+td.yr{text-align:center}
+.tip{position:fixed;z-index:10;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;box-shadow:0 4px 18px rgba(0,0,0,.18);max-width:280px;font-size:12px}
+.tip[hidden]{display:none}
+.tip .tt{font-weight:650}
+.tip .ts{color:var(--muted);margin-bottom:4px}
+.tip .tr{margin-top:4px}
+.tip .tr b{font:600 13px var(--mono);font-variant-numeric:tabular-nums}
+.tip .tr i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.tip .tr div{color:var(--ink2);padding-left:18px}
+footer{color:var(--muted);font-size:12px;max-width:100ch}
+@media (max-width:520px){.row{grid-template-columns:1fr;gap:2px}.lab{white-space:normal}.line{grid-template-columns:1fr 72px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Dashboard comercial · Ventas de bicicletas</h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="controls">
+      <div class="seg" id="segYear" role="group" aria-label="Periodo"></div>
+      <div class="seg" id="segMetric" role="group" aria-label="Medida">
+        <button data-v="vn" aria-pressed="true">Venta neta</button>
+        <button data-v="mg" aria-pressed="false">Margen</button>
+      </div>
+      <button class="ghost" id="btnTheme" aria-label="Cambiar tema claro u oscuro">Tema</button>
+    </div>
+  </header>
+  <div class="insight" id="insight"></div>
+  <section class="kpis" id="kpis"></section>
+  <div class="legend" id="legend"></div>
+  <section class="grid" id="cards"></section>
+  <footer id="foot"></footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script>
+/* Instantánea de Supabase (hechos_ventas unida a sus dimensiones). a = año, k = nombre, vn = venta neta, mg = margen, q = unidades, n = facturas. */
+const D={
+"kpi":[{"a":2023,"vn":488820.47,"mg":87808.57,"ct":401011.9,"q":454,"n":186,"fl":12221.79,"ds":113.53,"dist":22},{"a":2025,"vn":353161.49,"mg":171379.13,"ct":181782.36,"q":431,"n":179,"fl":8410.07,"ds":304.21,"dist":23}],
+"cat":[{"a":2023,"k":"Bicicleta","vn":468358.47,"mg":82693.07},{"a":2023,"k":"Componente","vn":20462,"mg":5115.5},{"a":2025,"k":"Bicicleta","vn":307130.54,"mg":149021.24},{"a":2025,"k":"Componente","vn":46030.95,"mg":22357.89}],
+"sub":[{"a":2023,"c":"Bicicleta","k":"Bicicleta de montaña","vn":274410,"mg":41161.5,"q":135},{"a":2023,"c":"Bicicleta","k":"Bicicleta de carretera","vn":193948.47,"mg":41531.57,"q":262},{"a":2023,"c":"Componente","k":"Cuadro de montaña","vn":11380,"mg":2845,"q":15},{"a":2023,"c":"Componente","k":"Cuadro de carretera","vn":9082,"mg":2270.5,"q":42},{"a":2025,"c":"Bicicleta","k":"Bicicleta de paseo","vn":219753.74,"mg":106581.08,"q":210},{"a":2025,"c":"Bicicleta","k":"Bicicleta de carretera","vn":51564.45,"mg":25045.59,"q":56},{"a":2025,"c":"Componente","k":"Cuadro de paseo","vn":40005,"mg":19431,"q":90},{"a":2025,"c":"Bicicleta","k":"Bicicleta de montaña","vn":35812.35,"mg":17394.57,"q":35},{"a":2025,"c":"Componente","k":"Cuadro de montaña","vn":2177.7,"mg":1057.74,"q":11},{"a":2025,"c":"Componente","k":"Cuadro de carretera","vn":1874.25,"mg":910.35,"q":5},{"a":2025,"c":"Componente","k":"Eje de pedalier","vn":757.05,"mg":367.71,"q":3},{"a":2025,"c":"Componente","k":"Bielas","vn":510.3,"mg":247.86,"q":2},{"a":2025,"c":"Componente","k":"Sillín","vn":436.8,"mg":212.16,"q":13},{"a":2025,"c":"Componente","k":"Pedal","vn":257.25,"mg":124.95,"q":5},{"a":2025,"c":"Componente","k":"Cadena","vn":12.6,"mg":6.12,"q":1}],
+"ej":[{"a":2023,"k":"Laura Sánchez","vn":139698,"mg":23866.6,"q":104,"n":45},{"a":2023,"k":"Jessica Taylor","vn":135517.47,"mg":27856.42,"q":174,"n":61},{"a":2023,"k":"Carlos López","vn":93177,"mg":14549.25,"q":56,"n":21},{"a":2023,"k":"Lucía Pérez","vn":79389,"mg":15338.55,"q":99,"n":52},{"a":2023,"k":"James Anderson","vn":41039,"mg":6197.75,"q":21,"n":7},{"a":2025,"k":"Michael Johnson","vn":108179.4,"mg":52544.28,"q":137,"n":59},{"a":2025,"k":"John Smith","vn":71891.69,"mg":34762.37,"q":83,"n":21},{"a":2025,"k":"José Rodríguez","vn":60292.05,"mg":29284.71,"q":82,"n":31},{"a":2025,"k":"María García","vn":60108.3,"mg":29195.46,"q":63,"n":35},{"a":2025,"k":"Emily Davis","vn":35429.1,"mg":17208.42,"q":44,"n":21},{"a":2025,"k":"Sofía Hernández","vn":13129.2,"mg":6377.04,"q":17,"n":8},{"a":2025,"k":"Ana Martínez","vn":4131.75,"mg":2006.85,"q":5,"n":4}],
+"est":[{"a":2023,"k":"Washington","vn":81326,"mg":12813.5,"n":21},{"a":2023,"k":"Georgia","vn":73170,"mg":10975.5,"n":8},{"a":2023,"k":"Ontario","vn":67862,"mg":14512.8,"n":36},{"a":2023,"k":"California","vn":55921,"mg":10330.35,"n":35},{"a":2023,"k":"Wyoming","vn":52890,"mg":7933.5,"n":7},{"a":2023,"k":"British Columbia","vn":39245.47,"mg":9082.12,"n":20},{"a":2023,"k":"Florida","vn":32150,"mg":6151,"n":17},{"a":2023,"k":"Quebec","vn":28410,"mg":4261.5,"n":5},{"a":2023,"k":"New Mexico","vn":23468,"mg":5008.2,"n":17},{"a":2023,"k":"Tennessee","vn":18860,"mg":3290,"n":7},{"a":2023,"k":"Mississippi","vn":15518,"mg":3450.1,"n":13},{"a":2025,"k":"Arizona","vn":71891.69,"mg":34762.37,"n":21},{"a":2025,"k":"New South Wales","vn":58314.9,"mg":28324.38,"n":32},{"a":2025,"k":"Hamburg","vn":37451.4,"mg":18190.68,"n":18},{"a":2025,"k":"Saarland","vn":35302.05,"mg":17146.71,"n":22},{"a":2025,"k":"Washington","vn":32689.65,"mg":15877.83,"n":18},{"a":2025,"k":"Oregon","vn":27602.4,"mg":13406.88,"n":13},{"a":2025,"k":"Brandenburg","vn":27377.7,"mg":13297.74,"n":15},{"a":2025,"k":"Seine (Paris)","vn":25066.65,"mg":12175.23,"n":17},{"a":2025,"k":"Quebec","vn":13129.2,"mg":6377.04,"n":8},{"a":2025,"k":"Hauts de Seine","vn":10362.45,"mg":5033.19,"n":4},{"a":2025,"k":"Nordrhein-Westfalen","vn":7656.6,"mg":3718.92,"n":2},{"a":2025,"k":"Queensland","vn":5368.65,"mg":2607.63,"n":4},{"a":2025,"k":"Victoria","vn":556.5,"mg":270.3,"n":3},{"a":2025,"k":"Bayern","vn":391.65,"mg":190.23,"n":2}],
+"tn":[{"a":2023,"k":"Value Added Reseller","vn":316182,"mg":50748.1,"n":84},{"a":2023,"k":"Warehouse","vn":156001.47,"mg":32901.22,"n":88},{"a":2023,"k":"Specialty Bike Shop","vn":16637,"mg":4159.25,"n":14},{"a":2025,"k":"Warehouse","vn":207175.79,"mg":100471.79,"n":90},{"a":2025,"k":"Value Added Reseller","vn":99426.6,"mg":48292.92,"n":63},{"a":2025,"k":"Specialty Bike Shop","vn":46559.1,"mg":22614.42,"n":26}],
+"prod":[{"a":2023,"k":"Mountain-100 Silver, 44","vn":42840,"mg":6426,"q":21},{"a":2023,"k":"Mountain-100 Black, 44","vn":40500,"mg":6075,"q":20},{"a":2023,"k":"Mountain-100 Silver, 38","vn":38760,"mg":5814,"q":19},{"a":2023,"k":"Mountain-100 Silver, 48","vn":36720,"mg":5508,"q":18},{"a":2023,"k":"Mountain-100 Black, 38","vn":34425,"mg":5163.75,"q":17},{"a":2023,"k":"Mountain-100 Black, 48","vn":32400,"mg":4860,"q":16},{"a":2023,"k":"Mountain-100 Black, 42","vn":26325,"mg":3948.75,"q":13},{"a":2023,"k":"Mountain-100 Silver, 42","vn":22440,"mg":3366,"q":11},{"a":2025,"k":"Touring-1000 Yellow, 60","vn":43543.5,"mg":21149.7,"q":29},{"a":2025,"k":"Touring-1000 Blue, 46","vn":40540.5,"mg":19691.1,"q":27},{"a":2025,"k":"Touring-1000 Blue, 54","vn":36690.44,"mg":17664.62,"q":25},{"a":2025,"k":"Touring-1000 Yellow, 46","vn":25525.5,"mg":12398.1,"q":17},{"a":2025,"k":"Touring-2000 Blue, 50","vn":13778.1,"mg":6692.22,"q":18},{"a":2025,"k":"Touring-2000 Blue, 60","vn":10716.3,"mg":5205.06,"q":14},{"a":2025,"k":"Mountain-200 Silver, 42","vn":10231.2,"mg":4969.44,"q":7},{"a":2025,"k":"HL Touring Frame - Blue, 54","vn":10113.6,"mg":4912.32,"q":16}]
+};
+const YEARS=[2023,2025];
+const FECHA={2023:'20 jun 2023',2025:'19 jun 2025'};
+const COLOR={2023:'var(--s1)',2025:'var(--s2)'};
+let sel='cmp', metric='vn';
+
+const nf=new Intl.NumberFormat('es-BO',{maximumFractionDigits:0});
+const pf=new Intl.NumberFormat('es-BO',{minimumFractionDigits:1,maximumFractionDigits:1});
+const money=n=>'$ '+nf.format(n);
+const pct=(a,b)=>b?a/b*100:0;
+const el=(t,c,txt)=>{const n=document.createElement(t);if(c)n.className=c;if(txt!=null)n.textContent=txt;return n};
+const ys=()=>sel==='cmp'?YEARS:[sel];
+const kp=y=>D.kpi.find(x=>x.a===y);
+
+function group(list){
+  const m=new Map();
+  for(const r of list){let o=m.get(r.k);if(!o){o={k:r.k,c:r.c,v:{}};m.set(r.k,o)}o.v[r.a]=r}
+  return [...m.values()];
+}
+const total=(o,yrs,m)=>yrs.reduce((s,y)=>s+(o.v[y]?o.v[y][m]:0),0);
+const sorted=(items,yrs,m)=>items.slice().sort((a,b)=>total(b,yrs,m)-total(a,yrs,m));
+
+/* Tooltip: un solo elemento, todo con textContent */
+const tip=document.getElementById('tip');
+function showTip(x,y,spec){
+  tip.replaceChildren(el('div','tt',spec.title));
+  if(spec.sub)tip.append(el('div','ts',spec.sub));
+  for(const r of spec.rows){
+    const d=el('div','tr');const sw=el('i');sw.style.background=r.color;
+    d.append(sw,el('b',null,r.head));
+    for(const t of r.lines)d.append(el('div',null,t));
+    tip.append(d);
+  }
+  tip.hidden=false;
+  const w=tip.offsetWidth,h=tip.offsetHeight;
+  tip.style.left=Math.max(8,Math.min(x+14,innerWidth-w-8))+'px';
+  tip.style.top=Math.max(8,Math.min(y+14,innerHeight-h-8))+'px';
+}
+const hideTip=()=>{tip.hidden=true};
+function specFor(o,yrs){
+  return {title:o.k,sub:o.c||null,rows:yrs.filter(y=>o.v[y]).map(y=>{
+    const d=o.v[y],l=['Margen '+money(d.mg)+' ('+pf.format(pct(d.mg,d.vn))+' %)'];
+    if(d.q!=null)l.push(nf.format(d.q)+' unidades');
+    if(d.n!=null)l.push(nf.format(d.n)+' facturas');
+    return {color:COLOR[y],head:y+' · '+money(d.vn),lines:l};
+  })};
+}
+function bindTip(node,getSpec){
+  node.addEventListener('pointermove',e=>showTip(e.clientX,e.clientY,getSpec()));
+  node.addEventListener('pointerleave',hideTip);
+  node.addEventListener('focus',()=>{const r=node.getBoundingClientRect();showTip(r.left+r.width/2,r.bottom-6,getSpec())});
+  node.addEventListener('blur',hideTip);
+}
+
+function barChart(items,yrs){
+  const wrap=el('div');
+  const max=Math.max(1,...items.flatMap(o=>yrs.map(y=>o.v[y]?o.v[y][metric]:0)));
+  for(const o of items){
+    const row=el('div','row');row.tabIndex=0;
+    const lab=el('div','lab',o.k);lab.title=o.k;
+    const lines=el('div','lines');
+    for(const y of yrs){
+      const val=o.v[y]?o.v[y][metric]:0;
+      if(!(val>0))continue; /* sin ventas ese año: no se dibuja barra */
+      const line=el('div','line'),track=el('div','track');
+      const b=el('div','bar');b.style.width=(val/max*100)+'%';b.style.background=COLOR[y];track.append(b);
+      line.append(track,el('span','val',money(val)));
+      lines.append(line);
+    }
+    row.append(lab,lines);
+    bindTip(row,()=>specFor(o,yrs));
+    wrap.append(row);
+  }
+  return wrap;
+}
+
+function tableOf(rows){
+  const t=el('table'),hd=el('tr');
+  for(const h of ['Nombre','Año','Venta neta','Margen','Margen %'])hd.append(el('th',null,h));
+  t.append(hd);
+  for(const r of rows){
+    const tr=el('tr');
+    tr.append(el('td',null,r.k),el('td','yr',String(r.y)),el('td',null,money(r.vn)),el('td',null,money(r.mg)),el('td',null,pf.format(pct(r.mg,r.vn))+' %'));
+    t.append(tr);
+  }
+  return t;
+}
+
+/* Cada tarjeta devuelve grupos {head, yrs, items}; el gráfico y la tabla salen de los mismos datos */
+const CARDS=[
+ {id:'mix',t:'Venta neta: costo y margen',s:'Qué parte de la venta neta es costo y cuál es margen',mix:true},
+ {id:'cat',t:'Por categoría',s:'dim_categorias',groups:()=>[{yrs:ys(),items:sorted(group(D.cat),ys(),metric)}]},
+ {id:'sub',t:'Por subcategoría',s:'dim_subcategorias · pasa el cursor para ver la categoría',groups:()=>[{yrs:ys(),items:sorted(group(D.sub),ys(),metric)}]},
+ {id:'tn',t:'Por tipo de negocio del distribuidor',s:'dim_distribuidores',groups:()=>[{yrs:ys(),items:sorted(group(D.tn),ys(),metric)}]},
+ {id:'ej',t:'Por ejecutivo de ventas',s:'dim_ejecutivos_ventas',groups:()=>[{yrs:ys(),items:sorted(group(D.ej),ys(),metric)}]},
+ {id:'est',t:'Por estado o provincia',s:'dim_geografia · 10 mayores del periodo',groups:()=>[{yrs:ys(),items:sorted(group(D.est),ys(),metric).slice(0,10)}]},
+ {id:'prod',t:'Productos más vendidos',s:'dim_productos · top 8 por venta neta de cada año',
+  groups:()=>ys().map(y=>({head:sel==='cmp'?y:null,yrs:[y],items:sorted(group(D.prod.filter(r=>r.a===y)),[y],'vn').slice(0,8)}))}
+];
+const tableMode={};
+
+function mixChart(){
+  const wrap=el('div');
+  const max=Math.max(...ys().map(y=>kp(y).vn));
+  for(const y of ys()){
+    const d=kp(y),row=el('div','mixrow');row.tabIndex=0;
+    const yl=el('div','yl');const sw=el('i');sw.style.background=COLOR[y];yl.append(sw,el('span',null,y+' · '+FECHA[y]));
+    const bar=el('div','mixbar');bar.style.width=(d.vn/max*100)+'%';
+    const c=el('div','seg-c'),m=el('div','seg-m');
+    c.style.width=(d.ct/d.vn*100)+'%';m.style.flex='1';
+    bar.append(c,m);
+    const lab=el('div','mixlab');
+    for(const [n,v] of [['Venta neta',money(d.vn)],['Costo',money(d.ct)],['Margen',money(d.mg)+' ('+pf.format(pct(d.mg,d.vn))+' %)']]){
+      const s=el('div',null,'');s.append(el('span',null,n+' '),document.createTextNode(v));lab.append(s);
+    }
+    row.append(yl,bar,lab);
+    bindTip(row,()=>({title:'Año '+y,sub:FECHA[y],rows:[{color:COLOR[y],head:'Venta neta '+money(d.vn),lines:['Costo '+money(d.ct)+' ('+pf.format(pct(d.ct,d.vn))+' %)','Margen '+money(d.mg)+' ('+pf.format(pct(d.mg,d.vn))+' %)','Descuento '+money(d.ds)+' · Flete '+money(d.fl)]}]}));
+    wrap.append(row);
+  }
+  const lg=el('div','legend');lg.style.marginTop='8px';
+  for(const [c,n] of [['var(--cost)','Costo'],['var(--margin)','Margen']]){const s=el('span');const i=el('i');i.style.background=c;s.append(i,document.createTextNode(n));lg.append(s)}
+  wrap.append(lg);
+  return wrap;
+}
+
+function renderCards(){
+  const host=document.getElementById('cards');host.replaceChildren();
+  for(const c of CARDS){
+    const card=el('div','card'),top=el('div','top'),hd=el('div');
+    hd.append(el('h2',null,c.t),el('p',null,c.s));
+    const tb=el('button','tbtn','Tabla');tb.setAttribute('aria-pressed',!!tableMode[c.id]);
+    tb.addEventListener('click',()=>{tableMode[c.id]=!tableMode[c.id];renderCards()});
+    top.append(hd,tb);card.append(top);
+    if(c.mix){
+      if(tableMode[c.id]){
+        const t=el('table'),h=el('tr');for(const x of ['Año','Venta neta','Costo','Margen','Margen %'])h.append(el('th',null,x));t.append(h);
+        for(const y of ys()){const d=kp(y),r=el('tr');r.append(el('td','yr',String(y)),el('td',null,money(d.vn)),el('td',null,money(d.ct)),el('td',null,money(d.mg)),el('td',null,pf.format(pct(d.mg,d.vn))+' %'));t.append(r)}
+        card.append(t);
+      }else card.append(mixChart());
+    }else{
+      const gs=c.groups();
+      if(tableMode[c.id]){
+        const rows=[];for(const g of gs)for(const o of g.items)for(const y of g.yrs)if(o.v[y])rows.push({k:o.k,y,vn:o.v[y].vn,mg:o.v[y].mg});
+        card.append(tableOf(rows));
+      }else for(const g of gs){
+        if(g.head){const h=el('div','ghead');const sw=el('i');sw.style.background=COLOR[g.head];h.append(sw,document.createTextNode(String(g.head)));card.append(h)}
+        card.append(barChart(g.items,g.yrs));
+      }
+    }
+    host.append(card);
+  }
+}
+
+function renderKpis(){
+  const host=document.getElementById('kpis');host.replaceChildren();
+  const val=(y,k)=>{const d=kp(y);return k==='mgp'?pct(d.mg,d.vn):k==='tk'?d.vn/d.n:d[k]};
+  const defs=[['Venta neta','vn',money],['Margen','mg',money],['Margen %','mgp',n=>pf.format(n)+' %'],['Unidades','q',nf.format],['Facturas','n',nf.format],['Ticket promedio','tk',money],['Distribuidores','dist',nf.format]];
+  for(const [l,k,f] of defs){
+    const k0=el('div','kpi'),last=ys()[ys().length-1];
+    k0.append(el('div','l',l+(sel==='cmp'?' · 2025':' · '+sel)),el('div','v',f(val(last,k))));
+    if(sel==='cmp'){
+      const a=val(2023,k),b=val(2025,k),ch=k==='mgp'?b-a:(a?(b-a)/a*100:0);
+      k0.append(el('div','d',(ch>=0?'▲ +':'▼ ')+pf.format(ch)+(k==='mgp'?' pp':' %')+' vs 2023 ('+f(a)+')'));
+    }else k0.append(el('div','d',FECHA[sel]));
+    host.append(k0);
+  }
+}
+
+function renderTop(){
+  document.getElementById('sub').textContent='La tabla de hechos solo tiene dos días de venta ('+FECHA[2023]+' y '+FECHA[2025]+'), por eso el dashboard compara un día contra el otro y no muestra tendencia mensual.';
+  const a=kp(2023),b=kp(2025),ins=document.getElementById('insight');ins.replaceChildren();
+  const dv=(b.vn/a.vn-1)*100,dm=(b.mg/a.mg-1)*100;
+  const mk=(t,bold)=>{const s=el('span');s.append(document.createTextNode(t));if(bold){const x=el('b',null,bold);s.append(x)}return s};
+  ins.append(document.createTextNode('2025 vs 2023: la venta neta '+(dv<0?'bajó ':'subió ')+pf.format(Math.abs(dv))+' % ('+money(b.vn)+' vs '+money(a.vn)+'), pero el margen '+(dm<0?'bajó ':'subió ')+pf.format(Math.abs(dm))+' % y el margen sobre venta pasó de '+pf.format(pct(a.mg,a.vn))+' % a '+pf.format(pct(b.mg,b.vn))+' %.'));
+  const lg=document.getElementById('legend');lg.replaceChildren();
+  for(const y of ys()){const s=el('span');const i=el('i');i.style.background=COLOR[y];s.append(i,document.createTextNode(y+' · '+FECHA[y]));lg.append(s)}
+  document.getElementById('foot').textContent='Fuente: Supabase, tabla hechos_ventas unida a dim_productos, dim_subcategorias, dim_categorias, dim_ejecutivos_ventas, dim_geografia y dim_distribuidores. Margen = venta neta menos costo total. Instantánea del 5 de noviembre de 2026: no se actualiza sola. Estados y productos de 2025 pueden tener nombres en inglés porque así vienen en la base.';
+}
+
+function seg(id,opts,get,set){
+  const host=document.getElementById(id);host.replaceChildren();
+  for(const [v,l] of opts){const b=el('button',null,l);b.dataset.v=v;b.setAttribute('aria-pressed',String(get())===v);b.addEventListener('click',()=>{set(v);renderAll()});host.append(b)}
+}
+function renderAll(){
+  seg('segYear',[['cmp','Comparar'],['2023','2023'],['2025','2025']],()=>sel,v=>{sel=v==='cmp'?'cmp':+v});
+  seg('segMetric',[['vn','Venta neta'],['mg','Margen']],()=>metric,v=>{metric=v});
+  renderTop();renderKpis();renderCards();
+}
+document.getElementById('btnTheme').addEventListener('click',()=>{
+  const root=document.documentElement,dark=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme=dark?'light':'dark';
+});
+renderAll();
+</script>
+</body>
+</html>
